@@ -1,7 +1,10 @@
 import { useState } from 'react'
-import { Menu } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { LogOut, Menu } from 'lucide-react'
+import { toast } from 'sonner'
 import type { SelectedItem } from '@/App'
 import type { Channel } from '@/data/channels'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { SidebarContent } from '@/components/layout/sidebar-content'
@@ -24,10 +27,17 @@ function getHeaderTitle(channels: readonly Channel[], selectedItem: SelectedItem
 
 export function ChatHeader({ channels, selectedItem, onSelectItem }: ChatHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const navigate = useNavigate()
 
   const handleSelectItem = (item: SelectedItem) => {
     onSelectItem(item)
     setIsOpen(false)
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    toast('ログアウトしました')
+    navigate('/login')
   }
 
   return (
@@ -41,7 +51,12 @@ export function ChatHeader({ channels, selectedItem, onSelectItem }: ChatHeaderP
         <Menu className="h-5 w-5" />
       </Button>
 
-      <h2 className="text-xl font-bold">{getHeaderTitle(channels, selectedItem)}</h2>
+      <h2 className="text-xl font-bold flex-1">{getHeaderTitle(channels, selectedItem)}</h2>
+
+      <Button variant="destructive" size="sm" onClick={handleLogout}>
+        <LogOut className="h-4 w-4 mr-1" />
+        ログアウト
+      </Button>
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent side="left" className="w-[260px] bg-[#611f69] text-white p-0">
