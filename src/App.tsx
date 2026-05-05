@@ -62,6 +62,33 @@ function App() {
     fetchMessages(selectedItem.id)
   }, [selectedItem?.id, selectedItem?.type])
 
+  useEffect(() => {
+    if (selectedItem === null || selectedItem.type !== 'channel') return
+    const selectedChannelId = selectedItem.id
+
+    const channel = supabase.channel(`messages:${selectedChannelId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const row = payload.new as Record<string, unknown>
+        if (row.channel_id !== selectedChannelId) return
+        const newMessage: Message = {
+          id: row.id as string,
+          type: 'channel',
+          parentId: row.channel_id as string,
+          userName: row.user_name as string,
+          body: row.content as string,
+          createdAt: row.created_at as string,
+          imageUrl: (row.image_url as string) ?? undefined,
+          reactions: {},
+        }
+        setMessages((prev) =>
+          prev.some((m) => m.id === newMessage.id) ? prev : [...prev, newMessage]
+        )
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [selectedItem?.id])
+
   const handleSend = async (body: string, imageFile?: File) => {
     if (selectedItem === null) return
 
@@ -91,10 +118,7 @@ function App() {
 
     if (error) {
       console.error('Failed to send message:', error)
-      return
     }
-
-    await fetchMessages(selectedItem.id)
   }
 
   const handleEdit = (id: string, newBody: string) => {
