@@ -57,6 +57,14 @@ export function MessageList({ messages, onEdit, onDelete, onReact }: MessageList
     setEmojiOpenId(null)
   }
 
+  if (messages.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        まだメッセージがありません
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((msg) => {

@@ -5,6 +5,8 @@ import { MessageList } from '@/components/layout/message-list'
 import { MessageInput } from '@/components/layout/message-input'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/use-auth'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Message } from '@/data/messages'
 import type { Channel } from '@/data/channels'
 
@@ -43,11 +45,18 @@ function App() {
   const [joinedChannelIds, setJoinedChannelIds] = useState<ReadonlySet<string>>(new Set())
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null)
   const [messages, setMessages] = useState<readonly Message[]>([])
+  const [loadingChannels, setLoadingChannels] = useState(true)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [channelsError, setChannelsError] = useState<string | null>(null)
+  const [messagesError, setMessagesError] = useState<string | null>(null)
 
   const fetchChannels = async () => {
+    setLoadingChannels(true)
+    setChannelsError(null)
     const { data, error } = await supabase.from('channels').select('*')
+    setLoadingChannels(false)
     if (error) {
-      console.error('Failed to fetch channels:', error)
+      setChannelsError('チャンネルの読み込みに失敗しました')
       return
     }
     setChannels(data)
@@ -104,14 +113,17 @@ function App() {
   }
 
   const fetchMessages = async (channelId: string) => {
+    setLoadingMessages(true)
+    setMessagesError(null)
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .eq('channel_id', channelId)
       .order('created_at', { ascending: true })
 
+    setLoadingMessages(false)
     if (error) {
-      console.error('Failed to fetch messages:', error)
+      setMessagesError('メッセージの読み込みに失敗しました')
       return
     }
 
@@ -140,7 +152,7 @@ function App() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [selectedItem?.id])
+  }, [selectedItem?.id, selectedItem?.type])
 
   const handleSend = async (body: string, imageFile?: File) => {
     if (selectedItem === null) return
@@ -175,13 +187,29 @@ function App() {
     }
   }
 
-  const handleEdit = (id: string, newBody: string) => {
+  const handleEdit = async (id: string, newBody: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: newBody })
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to update message:', error)
+      return
+    }
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, body: newBody } : m)),
     )
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to delete message:', error)
+      return
+    }
     setMessages((prev) => prev.filter((m) => m.id !== id))
   }
 
@@ -195,8 +223,34 @@ function App() {
     )
   }
 
+  if (loadingChannels) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <div className="space-y-4 w-full max-w-md">
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      </div>
+    )
+  }
+
+  if (channelsError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertDescription>{channelsError}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   if (selectedItem === null) {
-    return <div className="flex min-h-screen items-center justify-center text-muted-foreground">読み込み中...</div>
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        チャンネルがありません
+      </div>
+    )
   }
 
   return (
@@ -204,12 +258,32 @@ function App() {
       <Sidebar channels={channels} joinedChannelIds={joinedChannelIds} selectedItem={selectedItem} onSelectItem={setSelectedItem} onJoinChannel={handleJoinChannel} onLeaveChannel={handleLeaveChannel} />
       <div className="flex-1 flex flex-col">
         <ChatHeader channels={channels} joinedChannelIds={joinedChannelIds} selectedItem={selectedItem} onSelectItem={setSelectedItem} onJoinChannel={handleJoinChannel} onLeaveChannel={handleLeaveChannel} />
-        <MessageList
-          messages={messages}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onReact={handleReact}
-        />
+        {messagesError ? (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <Alert variant="destructive" className="max-w-md">
+              <AlertDescription>{messagesError}</AlertDescription>
+            </Alert>
+          </div>
+        ) : loadingMessages ? (
+          <div className="flex-1 p-4 space-y-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="flex gap-3">
+                <Skeleton className="h-9 w-9 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <MessageList
+            messages={messages}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onReact={handleReact}
+          />
+        )}
         <MessageInput onSend={handleSend} />
       </div>
     </div>
