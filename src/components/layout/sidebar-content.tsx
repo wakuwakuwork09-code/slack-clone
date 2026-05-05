@@ -1,13 +1,14 @@
 import type { SelectedItem } from '@/App'
-import { channels } from '@/data/channels'
+import type { Channel } from '@/data/channels'
 import { directMessages } from '@/data/dms'
 
 interface SidebarContentProps {
+  readonly channels: readonly Channel[]
   readonly selectedItem: SelectedItem
   readonly onSelectItem: (item: SelectedItem) => void
 }
 
-export function SidebarContent({ selectedItem, onSelectItem }: SidebarContentProps) {
+export function SidebarContent({ channels, selectedItem, onSelectItem }: SidebarContentProps) {
   return (
     <>
       <div className="px-4 py-3 font-bold text-lg">

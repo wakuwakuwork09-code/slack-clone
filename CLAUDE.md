@@ -6,9 +6,7 @@ Slackの全画面をダミーデータで構築し、2カラムレイアウト +
 
 ## 技術スタック
 
-- Vite + React + TypeScript
-- Tailwind CSS + shadcn/ui
-- react-router-dom
+- Vite + React + TypeScript + Tailwind CSS + shadcn/ui + react-router-dom
 
 ## 画面構成
 

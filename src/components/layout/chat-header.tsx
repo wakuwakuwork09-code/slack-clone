@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import type { SelectedItem } from '@/App'
+import type { Channel } from '@/data/channels'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { SidebarContent } from '@/components/layout/sidebar-content'
-import { channels } from '@/data/channels'
 import { directMessages } from '@/data/dms'
 
 interface ChatHeaderProps {
+  readonly channels: readonly Channel[]
   readonly selectedItem: SelectedItem
   readonly onSelectItem: (item: SelectedItem) => void
 }
 
-function getHeaderTitle(selectedItem: SelectedItem): string {
+function getHeaderTitle(channels: readonly Channel[], selectedItem: SelectedItem): string {
   if (selectedItem.type === 'channel') {
     const channel = channels.find((c) => c.id === selectedItem.id)
     return `# ${channel?.name ?? 'unknown'}`
@@ -21,7 +22,7 @@ function getHeaderTitle(selectedItem: SelectedItem): string {
   return `@ ${dm?.name ?? 'unknown'}`
 }
 
-export function ChatHeader({ selectedItem, onSelectItem }: ChatHeaderProps) {
+export function ChatHeader({ channels, selectedItem, onSelectItem }: ChatHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   const handleSelectItem = (item: SelectedItem) => {
@@ -40,11 +41,11 @@ export function ChatHeader({ selectedItem, onSelectItem }: ChatHeaderProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <h2 className="text-xl font-bold">{getHeaderTitle(selectedItem)}</h2>
+      <h2 className="text-xl font-bold">{getHeaderTitle(channels, selectedItem)}</h2>
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent side="left" className="w-[260px] bg-[#611f69] text-white p-0">
-          <SidebarContent selectedItem={selectedItem} onSelectItem={handleSelectItem} />
+          <SidebarContent channels={channels} selectedItem={selectedItem} onSelectItem={handleSelectItem} />
         </SheetContent>
       </Sheet>
     </div>

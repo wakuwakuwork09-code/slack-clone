@@ -5,6 +5,7 @@ export interface Message {
   readonly userName: string
   readonly body: string
   readonly createdAt: string
+  readonly imageUrl?: string
   readonly reactions: Readonly<Record<string, number>>
 }
 

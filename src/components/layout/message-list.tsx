@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Pencil, Smile, Trash2 } from 'lucide-react'
-import type { SelectedItem } from '@/App'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,6 @@ import type { Message } from '@/data/messages'
 const EMOJI_OPTIONS = ['👍', '❤️', '😂', '🎉', '😮'] as const
 
 interface MessageListProps {
-  readonly selectedItem: SelectedItem
   readonly messages: readonly Message[]
   readonly onEdit: (id: string, newBody: string) => void
   readonly onDelete: (id: string) => void
@@ -21,19 +19,15 @@ function getInitials(name: string): string {
   return name.slice(0, 2)
 }
 
-export function MessageList({ selectedItem, messages, onEdit, onDelete, onReact }: MessageListProps) {
+export function MessageList({ messages, onEdit, onDelete, onReact }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editBody, setEditBody] = useState('')
   const [emojiOpenId, setEmojiOpenId] = useState<string | null>(null)
 
-  const filtered = messages.filter(
-    (msg) => msg.type === selectedItem.type && msg.parentId === selectedItem.id,
-  )
-
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [filtered.length])
+  }, [messages])
 
   const handleStartEdit = (msg: Message) => {
     setEditingId(msg.id)
@@ -65,7 +59,7 @@ export function MessageList({ selectedItem, messages, onEdit, onDelete, onReact 
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {filtered.map((msg) => {
+      {messages.map((msg) => {
         const reactionEntries = Object.entries(msg.reactions).filter(([, count]) => count > 0)
 
         return (
@@ -92,7 +86,16 @@ export function MessageList({ selectedItem, messages, onEdit, onDelete, onReact 
                   </div>
                 </div>
               ) : (
-                <p className="text-sm">{msg.body}</p>
+                <>
+                  {msg.body && <p className="text-sm">{msg.body}</p>}
+                  {msg.imageUrl && (
+                    <img
+                      src={msg.imageUrl}
+                      alt="添付画像"
+                      className="mt-1 max-w-xs rounded-lg"
+                    />
+                  )}
+                </>
               )}
               {reactionEntries.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
