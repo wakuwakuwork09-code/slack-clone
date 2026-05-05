@@ -2,6 +2,7 @@ export interface Message {
   readonly id: string
   readonly type: 'channel' | 'dm'
   readonly parentId: string
+  readonly userId?: string | null
   readonly userName: string
   readonly body: string
   readonly createdAt: string

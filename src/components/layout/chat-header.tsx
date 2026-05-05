@@ -12,8 +12,11 @@ import { directMessages } from '@/data/dms'
 
 interface ChatHeaderProps {
   readonly channels: readonly Channel[]
+  readonly joinedChannelIds: ReadonlySet<string>
   readonly selectedItem: SelectedItem
   readonly onSelectItem: (item: SelectedItem) => void
+  readonly onJoinChannel: (channelId: string) => void
+  readonly onLeaveChannel: (channelId: string) => void
 }
 
 function getHeaderTitle(channels: readonly Channel[], selectedItem: SelectedItem): string {
@@ -25,7 +28,7 @@ function getHeaderTitle(channels: readonly Channel[], selectedItem: SelectedItem
   return `@ ${dm?.name ?? 'unknown'}`
 }
 
-export function ChatHeader({ channels, selectedItem, onSelectItem }: ChatHeaderProps) {
+export function ChatHeader({ channels, joinedChannelIds, selectedItem, onSelectItem, onJoinChannel, onLeaveChannel }: ChatHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -60,7 +63,7 @@ export function ChatHeader({ channels, selectedItem, onSelectItem }: ChatHeaderP
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent side="left" className="w-[260px] bg-[#611f69] text-white p-0">
-          <SidebarContent channels={channels} selectedItem={selectedItem} onSelectItem={handleSelectItem} />
+          <SidebarContent channels={channels} joinedChannelIds={joinedChannelIds} selectedItem={selectedItem} onSelectItem={handleSelectItem} onJoinChannel={onJoinChannel} onLeaveChannel={onLeaveChannel} />
         </SheetContent>
       </Sheet>
     </div>

@@ -4,8 +4,33 @@ import { ChatHeader } from '@/components/layout/chat-header'
 import { MessageList } from '@/components/layout/message-list'
 import { MessageInput } from '@/components/layout/message-input'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/use-auth'
 import type { Message } from '@/data/messages'
 import type { Channel } from '@/data/channels'
+
+interface DBMessageRow {
+  readonly id: string
+  readonly channel_id: string
+  readonly user_id: string | null
+  readonly user_name: string
+  readonly content: string
+  readonly created_at: string
+  readonly image_url: string | null
+}
+
+function rowToMessage(row: DBMessageRow): Message {
+  return {
+    id: row.id,
+    type: 'channel',
+    parentId: row.channel_id,
+    userId: row.user_id,
+    userName: row.user_name,
+    body: row.content,
+    createdAt: row.created_at,
+    imageUrl: row.image_url ?? undefined,
+    reactions: {},
+  }
+}
 
 export interface SelectedItem {
   readonly type: 'channel' | 'dm'
@@ -13,24 +38,70 @@ export interface SelectedItem {
 }
 
 function App() {
+  const { session } = useAuth()
   const [channels, setChannels] = useState<readonly Channel[]>([])
+  const [joinedChannelIds, setJoinedChannelIds] = useState<ReadonlySet<string>>(new Set())
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null)
   const [messages, setMessages] = useState<readonly Message[]>([])
 
-  useEffect(() => {
-    const fetchChannels = async () => {
-      const { data, error } = await supabase.from('channels').select('*')
-      if (error) {
-        console.error('Failed to fetch channels:', error)
-        return
-      }
-      setChannels(data)
-      if (data.length > 0 && selectedItem === null) {
-        setSelectedItem({ type: 'channel', id: data[0].id })
-      }
+  const fetchChannels = async () => {
+    const { data, error } = await supabase.from('channels').select('*')
+    if (error) {
+      console.error('Failed to fetch channels:', error)
+      return
     }
+    setChannels(data)
+    if (data.length > 0 && selectedItem === null) {
+      setSelectedItem({ type: 'channel', id: data[0].id })
+    }
+  }
+
+  const fetchMemberships = async () => {
+    const { data, error } = await supabase.from('channel_members').select('channel_id')
+    if (error) {
+      console.error('Failed to fetch memberships:', error)
+      return
+    }
+    setJoinedChannelIds(new Set(data.map((r) => r.channel_id)))
+  }
+
+  useEffect(() => {
     fetchChannels()
+    fetchMemberships()
   }, [])
+
+  const handleJoinChannel = async (channelId: string) => {
+    if (!session) return
+    const { error } = await supabase
+      .from('channel_members')
+      .insert({ channel_id: channelId, user_id: session.user.id })
+      .select()
+    if (error) {
+      console.error('Failed to join channel:', error)
+      return
+    }
+    await fetchMemberships()
+    if (selectedItem?.id === channelId) {
+      await fetchMessages(channelId)
+    }
+  }
+
+  const handleLeaveChannel = async (channelId: string) => {
+    if (!session) return
+    const { error } = await supabase
+      .from('channel_members')
+      .delete()
+      .eq('channel_id', channelId)
+      .eq('user_id', session.user.id)
+    if (error) {
+      console.error('Failed to leave channel:', error)
+      return
+    }
+    await fetchMemberships()
+    if (selectedItem?.id === channelId) {
+      setMessages([])
+    }
+  }
 
   const fetchMessages = async (channelId: string) => {
     const { data, error } = await supabase
@@ -44,16 +115,7 @@ function App() {
       return
     }
 
-    const mapped: Message[] = data.map((row) => ({
-      id: row.id,
-      type: 'channel' as const,
-      parentId: row.channel_id,
-      userName: row.user_name,
-      body: row.content,
-      createdAt: row.created_at,
-      imageUrl: row.image_url ?? undefined,
-      reactions: {},
-    }))
+    const mapped: Message[] = (data as DBMessageRow[]).map(rowToMessage)
     setMessages(mapped)
   }
 
@@ -68,18 +130,9 @@ function App() {
 
     const channel = supabase.channel(`messages:${selectedChannelId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const row = payload.new as Record<string, unknown>
+        const row = payload.new as DBMessageRow
         if (row.channel_id !== selectedChannelId) return
-        const newMessage: Message = {
-          id: row.id as string,
-          type: 'channel',
-          parentId: row.channel_id as string,
-          userName: row.user_name as string,
-          body: row.content as string,
-          createdAt: row.created_at as string,
-          imageUrl: (row.image_url as string) ?? undefined,
-          reactions: {},
-        }
+        const newMessage = rowToMessage(row)
         setMessages((prev) =>
           prev.some((m) => m.id === newMessage.id) ? prev : [...prev, newMessage]
         )
@@ -112,7 +165,8 @@ function App() {
     const { error } = await supabase.from('messages').insert({
       content: body,
       channel_id: selectedItem.id,
-      user_name: '自分',
+      user_id: session?.user.id ?? null,
+      user_name: session?.user.email?.split('@')[0] ?? '自分',
       image_url: imageUrl ?? null,
     })
 
@@ -147,9 +201,9 @@ function App() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar channels={channels} selectedItem={selectedItem} onSelectItem={setSelectedItem} />
+      <Sidebar channels={channels} joinedChannelIds={joinedChannelIds} selectedItem={selectedItem} onSelectItem={setSelectedItem} onJoinChannel={handleJoinChannel} onLeaveChannel={handleLeaveChannel} />
       <div className="flex-1 flex flex-col">
-        <ChatHeader channels={channels} selectedItem={selectedItem} onSelectItem={setSelectedItem} />
+        <ChatHeader channels={channels} joinedChannelIds={joinedChannelIds} selectedItem={selectedItem} onSelectItem={setSelectedItem} onJoinChannel={handleJoinChannel} onLeaveChannel={handleLeaveChannel} />
         <MessageList
           messages={messages}
           onEdit={handleEdit}
