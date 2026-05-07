@@ -3,16 +3,17 @@ import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { SidebarContent } from '@/components/layout/sidebar'
-import { channels } from '@/data/channels'
+import type { Channel } from '@/data/channels'
 import { directMessages } from '@/data/dms'
 import type { SelectedItem } from '@/App'
 
 interface ChatHeaderProps {
+  readonly channels: readonly Channel[]
   readonly selectedItem: SelectedItem
   readonly onSelect: (item: SelectedItem) => void
 }
 
-function getHeaderLabel(selectedItem: SelectedItem): string {
+function getHeaderLabel(channels: readonly Channel[], selectedItem: SelectedItem): string {
   if (selectedItem.type === 'channel') {
     const ch = channels.find((c) => c.id === selectedItem.id)
     return `# ${ch?.name ?? 'unknown'}`
@@ -21,7 +22,7 @@ function getHeaderLabel(selectedItem: SelectedItem): string {
   return `@ ${dm?.userName ?? 'unknown'}`
 }
 
-export function ChatHeader({ selectedItem, onSelect }: ChatHeaderProps) {
+export function ChatHeader({ channels, selectedItem, onSelect }: ChatHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   const handleSelect = (item: SelectedItem) => {
@@ -40,7 +41,7 @@ export function ChatHeader({ selectedItem, onSelect }: ChatHeaderProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <h2 className="text-xl font-bold">{getHeaderLabel(selectedItem)}</h2>
+      <h2 className="text-xl font-bold">{getHeaderLabel(channels, selectedItem)}</h2>
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent
@@ -49,7 +50,7 @@ export function ChatHeader({ selectedItem, onSelect }: ChatHeaderProps) {
           showCloseButton={false}
         >
           <SheetTitle className="sr-only">メニュー</SheetTitle>
-          <SidebarContent selectedItem={selectedItem} onSelect={handleSelect} />
+          <SidebarContent channels={channels} selectedItem={selectedItem} onSelect={handleSelect} />
         </SheetContent>
       </Sheet>
     </div>

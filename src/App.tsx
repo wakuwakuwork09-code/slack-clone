@@ -1,34 +1,77 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { ChatHeader } from '@/components/layout/chat-header'
 import { MessageList } from '@/components/layout/message-list'
 import { MessageInput } from '@/components/layout/message-input'
-import { channels } from '@/data/channels'
-import { messages as initialMessages, type Message } from '@/data/messages'
+import { supabase } from '@/lib/supabase'
+import type { Channel } from '@/data/channels'
+import type { Message } from '@/data/messages'
 
 export interface SelectedItem {
   readonly type: 'channel' | 'dm'
   readonly id: string
 }
 
-function App() {
-  const [selectedItem, setSelectedItem] = useState<SelectedItem>({
+function toMessage(row: { id: string; channel_id: string; user_name: string; content: string; created_at: string }): Message {
+  return {
+    id: row.id,
     type: 'channel',
-    id: channels[0].id,
-  })
-  const [messages, setMessages] = useState<readonly Message[]>(initialMessages)
+    parentId: row.channel_id,
+    userName: row.user_name,
+    body: row.content,
+    createdAt: row.created_at,
+    reactions: {},
+  }
+}
 
-  const handleSend = (body: string) => {
-    const newMessage: Message = {
-      id: crypto.randomUUID(),
-      type: selectedItem.type,
-      parentId: selectedItem.id,
-      userName: '自分',
-      body,
-      createdAt: new Date().toISOString(),
-      reactions: {},
+function App() {
+  const [channels, setChannels] = useState<readonly Channel[]>([])
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null)
+  const [messages, setMessages] = useState<readonly Message[]>([])
+
+  useEffect(() => {
+    const fetchChannels = async () => {
+      const { data, error } = await supabase.from('channels').select('*')
+      if (error) {
+        console.error('Failed to fetch channels:', error)
+        return
+      }
+      setChannels(data)
+      if (data.length > 0 && !selectedItem) {
+        setSelectedItem({ type: 'channel', id: data[0].id })
+      }
     }
-    setMessages((prev) => [...prev, newMessage])
+    fetchChannels()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedItem || selectedItem.type !== 'channel') return
+    fetchMessages(selectedItem.id)
+  }, [selectedItem?.id, selectedItem?.type])
+
+  const fetchMessages = async (channelId: string) => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: true })
+    if (error) {
+      console.error('Failed to fetch messages:', error)
+      return
+    }
+    setMessages(data.map(toMessage))
+  }
+
+  const handleSend = async (body: string) => {
+    if (!selectedItem || selectedItem.type !== 'channel') return
+    const { error } = await supabase
+      .from('messages')
+      .insert({ content: body, channel_id: selectedItem.id, user_name: '自分' })
+    if (error) {
+      console.error('Failed to send message:', error)
+      return
+    }
+    await fetchMessages(selectedItem.id)
   }
 
   const handleEdit = (id: string, newBody: string) => {
@@ -51,16 +94,16 @@ function App() {
     )
   }
 
-  const filtered = messages.filter(
-    (msg) => msg.type === selectedItem.type && msg.parentId === selectedItem.id,
-  )
+  if (!selectedItem) {
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>
+  }
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar selectedItem={selectedItem} onSelect={setSelectedItem} />
+      <Sidebar channels={channels} selectedItem={selectedItem} onSelect={setSelectedItem} />
       <div className="flex-1 flex flex-col">
-        <ChatHeader selectedItem={selectedItem} onSelect={setSelectedItem} />
-        <MessageList messages={filtered} onEdit={handleEdit} onDelete={handleDelete} onReact={handleReact} />
+        <ChatHeader channels={channels} selectedItem={selectedItem} onSelect={setSelectedItem} />
+        <MessageList messages={messages} onEdit={handleEdit} onDelete={handleDelete} onReact={handleReact} />
         <MessageInput onSend={handleSend} />
       </div>
     </div>

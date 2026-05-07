@@ -1,13 +1,14 @@
-import { channels } from '@/data/channels'
+import type { Channel } from '@/data/channels'
 import { directMessages } from '@/data/dms'
 import type { SelectedItem } from '@/App'
 
 interface SidebarContentProps {
+  readonly channels: readonly Channel[]
   readonly selectedItem: SelectedItem
   readonly onSelect: (item: SelectedItem) => void
 }
 
-export function SidebarContent({ selectedItem, onSelect }: SidebarContentProps) {
+export function SidebarContent({ channels, selectedItem, onSelect }: SidebarContentProps) {
   return (
     <>
       <div className="px-4 py-3 font-bold text-lg">
@@ -66,14 +67,15 @@ export function SidebarContent({ selectedItem, onSelect }: SidebarContentProps) 
 }
 
 interface SidebarProps {
+  readonly channels: readonly Channel[]
   readonly selectedItem: SelectedItem
   readonly onSelect: (item: SelectedItem) => void
 }
 
-export function Sidebar({ selectedItem, onSelect }: SidebarProps) {
+export function Sidebar({ channels, selectedItem, onSelect }: SidebarProps) {
   return (
     <aside className="hidden md:flex w-[260px] flex-shrink-0 bg-[#611f69] text-white flex-col">
-      <SidebarContent selectedItem={selectedItem} onSelect={onSelect} />
+      <SidebarContent channels={channels} selectedItem={selectedItem} onSelect={onSelect} />
     </aside>
   )
 }
