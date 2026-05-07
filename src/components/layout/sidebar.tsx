@@ -1,12 +1,13 @@
-const channels = [
-  'general',
-  'random',
-  'project-a',
-  'design',
-  'announcements',
-] as const
+import { channels } from '@/data/channels'
+import { directMessages } from '@/data/dms'
+import type { SelectedItem } from '@/App'
 
-export function SidebarContent() {
+interface SidebarContentProps {
+  readonly selectedItem: SelectedItem
+  readonly onSelect: (item: SelectedItem) => void
+}
+
+export function SidebarContent({ selectedItem, onSelect }: SidebarContentProps) {
   return (
     <>
       <div className="px-4 py-3 font-bold text-lg">
@@ -18,24 +19,61 @@ export function SidebarContent() {
       </div>
 
       <nav className="flex flex-col px-2 gap-0.5">
-        {channels.map((name) => (
-          <div
-            key={name}
-            className="flex items-center h-8 px-3 rounded text-sm hover:bg-white/10"
-          >
-            <span className="mr-1.5 text-white/70">#</span>
-            <span>{name}</span>
-          </div>
-        ))}
+        {channels.map((ch) => {
+          const isActive = selectedItem.type === 'channel' && selectedItem.id === ch.id
+          return (
+            <button
+              key={ch.id}
+              type="button"
+              onClick={() => onSelect({ type: 'channel', id: ch.id })}
+              className={`flex items-center h-8 px-3 rounded text-sm cursor-pointer text-left ${
+                isActive ? 'bg-[#1264A3] text-white' : 'hover:bg-white/10'
+              }`}
+            >
+              <span className={`mr-1.5 ${isActive ? 'text-white' : 'text-white/70'}`}>#</span>
+              <span>{ch.name}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      <div className="px-3 py-2 text-xs uppercase tracking-wide opacity-70">
+        ダイレクトメッセージ
+      </div>
+
+      <nav className="flex flex-col px-2 gap-0.5">
+        {directMessages.map((dm) => {
+          const isActive = selectedItem.type === 'dm' && selectedItem.id === dm.id
+          return (
+            <button
+              key={dm.id}
+              type="button"
+              onClick={() => onSelect({ type: 'dm', id: dm.id })}
+              className={`flex items-center gap-2 h-8 px-3 rounded text-sm cursor-pointer text-left ${
+                isActive ? 'bg-[#1264A3] text-white' : 'hover:bg-white/10'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${dm.online ? 'bg-green-500' : 'bg-gray-400'}`}
+              />
+              <span>{dm.userName}</span>
+            </button>
+          )
+        })}
       </nav>
     </>
   )
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  readonly selectedItem: SelectedItem
+  readonly onSelect: (item: SelectedItem) => void
+}
+
+export function Sidebar({ selectedItem, onSelect }: SidebarProps) {
   return (
     <aside className="hidden md:flex w-[260px] flex-shrink-0 bg-[#611f69] text-white flex-col">
-      <SidebarContent />
+      <SidebarContent selectedItem={selectedItem} onSelect={onSelect} />
     </aside>
   )
 }

@@ -1,10 +1,19 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { messages } from '@/data/messages'
+import type { SelectedItem } from '@/App'
 
-export function MessageList() {
+interface MessageListProps {
+  readonly selectedItem: SelectedItem
+}
+
+export function MessageList({ selectedItem }: MessageListProps) {
+  const filtered = messages.filter(
+    (msg) => msg.type === selectedItem.type && msg.parentId === selectedItem.id,
+  )
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.map((msg) => (
+      {filtered.map((msg) => (
         <div key={msg.id} className="flex gap-3">
           <Avatar className="h-9 w-9 flex-shrink-0">
             <AvatarFallback className="text-xs">
